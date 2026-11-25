@@ -1,0 +1,17 @@
+id: vnm
+name: Viet Nam (climate-health-data)
+
+extent:
+  name: Viet Nam
+  # Approximate, padded outward; mainland and near-shore islands only. To be derived from the
+  # admin-1 boundaries later.
+  bbox: [102.1, 8.3, 109.5, 23.4]
+  # ISO 3166-1 alpha-3, used by WorldPop and other per-country sources.
+  country_code: VNM
+
+# Both resolve relative to this file.
+data_dir: ./data
+plugins_dir: ../../plugins
+
+# Writable: ingestion is the point. Bind to 127.0.0.1 only. Suggested port: 8013.
+read_only: false

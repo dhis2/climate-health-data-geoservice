@@ -1,0 +1,16 @@
+id: lao
+name: Lao PDR (climate-health-data)
+
+extent:
+  name: Lao PDR
+  # Approximate, padded outward. To be derived from the admin-1 boundaries later.
+  bbox: [100.0, 13.8, 107.8, 22.6]
+  # ISO 3166-1 alpha-3, used by WorldPop and other per-country sources.
+  country_code: LAO
+
+# Both resolve relative to this file.
+data_dir: ./data
+plugins_dir: ../../plugins
+
+# Writable: ingestion is the point. Bind to 127.0.0.1 only. Suggested port: 8011.
+read_only: false

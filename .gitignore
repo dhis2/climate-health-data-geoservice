@@ -221,3 +221,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- climate-health-data-geoservice ---
+.claude/
+
+# Each instance's Zarr stores and downloads. The folder is kept, its contents are not.
+instances/*/data/*
+!instances/*/data/.gitkeep
+
+# Local config overrides for one machine — never commit.
+instances/*/geoservice.local.yaml

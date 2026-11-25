@@ -1,0 +1,35 @@
+[project]
+name = "climate-health-data-geoservice"
+version = "0.1.0"
+requires-python = ">=3.12"
+description = "Open Geo Service instances, one per country, that build the Chap climate and health datasets"
+dependencies = [
+    # See [tool.uv.sources] below: both track a branch, not a release.
+    "open-geo-service[server]",
+    # Experimental dataset plugins, found through their entry point: no plugins_dir needed.
+    "open-geo-service-plugins",
+]
+
+[tool.uv]
+package = false
+# Required for uv to resolve the [server] extra: these relax stale upstream transitive pins.
+# Keep in step with the same block in open-geo-service's pyproject.toml.
+override-dependencies = [
+    "geojson-pydantic>=2.1.0",
+    "zarr>=3.1.6",
+    "pyarrow>=19.0",
+    "xarray>=2025.12.0",
+    "numpy>=2.2",
+    "dask>=2024.1.0",
+    "dask-geopandas>=0.4",
+    "geopandas>=1.1",
+    "xvec>=0.3",
+    "rioxarray>=0.17",
+    "pystac>=1.10",
+]
+
+[tool.uv.sources]
+# Branch heads, not releases. `uv lock --upgrade` re-locks against the current heads; uv.lock
+# records the exact commits, which is what a built dataset's provenance should cite.
+open-geo-service = { git = "https://github.com/dhis2/open-geo-service.git", branch = "main" }
+open-geo-service-plugins = { git = "https://github.com/dhis2-chap/open-geo-service-plugins.git", branch = "main" }
