@@ -1,5 +1,5 @@
-id: vnm
-name: Viet Nam (climate-health-data)
+id: opendengue-vnm
+name: Viet Nam — OpenDengue
 
 extent:
   name: Viet Nam
@@ -11,7 +11,7 @@ extent:
 
 # Both resolve relative to this file.
 data_dir: ./data
-plugins_dir: ../../plugins
+plugins_dir: ../../../plugins
 
 # Writable: ingestion is the point. Bind to 127.0.0.1 only. Suggested port: 8013.
 read_only: false

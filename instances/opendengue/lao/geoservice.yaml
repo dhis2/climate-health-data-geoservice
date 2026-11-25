@@ -1,16 +1,16 @@
-id: tha
-name: Thailand (climate-health-data)
+id: opendengue-lao
+name: Lao PDR — OpenDengue
 
 extent:
-  name: Thailand
+  name: Lao PDR
   # Approximate, padded outward. To be derived from the admin-1 boundaries later.
-  bbox: [97.3, 5.5, 105.7, 20.5]
+  bbox: [100.0, 13.8, 107.8, 22.6]
   # ISO 3166-1 alpha-3, used by WorldPop and other per-country sources.
-  country_code: THA
+  country_code: LAO
 
 # Both resolve relative to this file.
 data_dir: ./data
-plugins_dir: ../../plugins
+plugins_dir: ../../../plugins
 
-# Writable: ingestion is the point. Bind to 127.0.0.1 only. Suggested port: 8012.
+# Writable: ingestion is the point. Bind to 127.0.0.1 only. Suggested port: 8011.
 read_only: false
