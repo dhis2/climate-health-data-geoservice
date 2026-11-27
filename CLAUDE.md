@@ -58,7 +58,7 @@ instances/<disease>/<iso3>/   # e.g. opendengue/lao — grouped by disease data 
 | `mean_relative_humidity` | Magnus (a=6.112, b=17.67, c=243.5) on monthly-mean T and Td | built-in `era5land_relative_humidity_daily`. Use it rather than writing our own. Daily to monthly harmonisation happens in a later step, together with the other datasets. |
 | `population` | WorldPop 2020, applied to every period | built-in `worldpop_population_global2_100m` (2015–2030), year 2020. This may be a different WorldPop release than the one published. |
 | `disease_cases` | OpenDengue | table dataset, waiting on core #567 (see decisions) |
-| boundaries | attributed to OCHA COD-AB, but the fields `shapeISO`/`shapeName` are geoBoundaries' | Natural Earth 10m admin-1 (see decisions). `plugins/vectors/overture_admin1.yaml` was the first version and is superseded. |
+| boundaries | attributed to OCHA COD-AB, but the fields `shapeISO`/`shapeName` are geoBoundaries' | Natural Earth 10m admin-1 (see decisions). An Overture admin-1 template came first and was dropped. |
 
 - **Rainfall units are unclear.** The schema says "mm", but the values look like a mean daily rate. Examples: LAO Jan 1998 is about 0.03, and Narathiwat Dec 2022 is 14.4, which would be about 450 mm per month. If so, the published values match the built-in mm/d dataset, not a monthly sum. Confirm when comparing.
 

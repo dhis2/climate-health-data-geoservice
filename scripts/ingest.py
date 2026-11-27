@@ -2,7 +2,7 @@
 
     uv run python scripts/ingest.py opendengue/lao            # one instance
     uv run python scripts/ingest.py --all                     # every instance with a datasets.yaml
-    uv run python scripts/ingest.py opendengue/lao --only overture_admin1
+    uv run python scripts/ingest.py opendengue/lao --only natural_earth_admin1
 
 Open Geo Service reads GEOSERVICE_CONFIG once per process, so each instance is ingested in its own
 subprocess with GEOSERVICE_CONFIG pointing at that instance's geoservice.yaml. No server is needed;
