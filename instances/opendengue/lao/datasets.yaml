@@ -1,0 +1,19 @@
+# What scripts/ingest.py puts into this instance. Raster ids are Open Geo Service dataset
+# templates (built-in, open-geo-service-plugins, or plugins/rasters/); vector ids are feature
+# templates (plugins/vectors/). `start`/`end` apply to every raster unless one overrides them.
+#
+# Window: the published climate-health-data lao/ dataset, 1998-01 to 2010-12. Each raster is
+# ingested over its whole window in one request (CLIM-899), never with overwrite (CLIM-898).
+start: "1998-01-01"
+end: "2010-12-31"
+
+rasters:
+  - era5land_temperature_monthly      # mean_temperature (degC)
+  - era5land_precipitation_monthly    # rainfall (mm/d, mean daily rate)
+  - era5land_relative_humidity_daily  # mean_relative_humidity (%), monthly harmonisation later
+  - id: worldpop_population_global2_100m  # population, 2020 applied to every period
+    start: "2020"
+    end: "2020"
+
+vectors:
+  - overture_admin1                   # admin-1 boundaries
