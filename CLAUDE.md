@@ -8,16 +8,18 @@ A multi-instance [Open Geo Service](https://github.com/dhis2/open-geo-service) r
 pyproject.toml, uv.lock   # open-geo-service[server] + open-geo-service-plugins, both on git main, locked
 .env                      # credentials only, shared by all instances (never commit, never print)
 plugins/                  # shared; only vectors/ for now (add rasters/, processes/, workflows/ when needed)
-instances/<disease>/<iso3>/   # e.g. opendengue/lao — grouped by disease data source, then country
-  geoservice.yaml         # id: <disease>-<iso3>, extent (bbox + country_code), data_dir: ./data, plugins_dir: ../../../plugins
+instances/<iso3>/         # e.g. lao — one per country: climate, boundaries and every disease table
+  geoservice.yaml         # id: <iso3>, extent (bbox + country_code), data_dir: ./data, plugins_dir: ../../plugins
+  datasets.yaml           # what scripts/ingest.py ingests
   data/                   # Zarr stores, gitignored
 ```
 - The pattern follows turban's instance repos. The closest is `dhis2/nepal-geo-service-test` (uv, writable, localhost). `dhis2/nepal-geo-service-demo` is the Docker and read-only variant for when this gets hosted. Core's guide is `docs/instance_guide.md`.
 - Datasets come from three places: core built-ins, then installed `open-geo-service-plugins` (found via entry point), then `plugins/` here. A later source wins on the same id.
 - `data_dir` resolves relative to the config file. Core reads the config once per process, so each instance is its own server or process, chosen with `GEOSERVICE_CONFIG`.
-- Instances and ports: `opendengue/lao` 8011, `opendengue/tha` 8012, `opendengue/vnm` 8013. The bboxes are approximate for now; derive them from the admin-1 boundaries later.
+- Instances and ports: `lao` 8011, `tha` 8012, `vnm` 8013. The bboxes are approximate for now; derive them from the admin-1 boundaries later.
 
 ## Decisions (2026-11-25)
+- **One instance per country, shared by every disease (2026-11-27).** Separate instances per disease would duplicate all the climate data. Each disease is a table in the country's instance, joined to its boundaries by feature id. Tables may cover different years, so a window per table goes in `datasets.yaml` and the climate window spans them all.
 - **This repo is separate from `climate-health-data`.** Outputs (Chap CSV, GeoJSON, schema) are exported externally, not stored here. Export comes later. The first goal is just the three instances holding the data.
 - **OpenDengue becomes a table dataset, once core PR #567 (table templates and plugins) merges.** A vector collection can't hold a time series per unit, but core's tables can: rows keyed by `collection_id`, `feature_id` and `period_start`, with `feature_id` checked against a registered feature collection.
   - The plan is a custom schema in `plugins/tables/schemas/opendengue.yaml` whose key includes `adm_1_name`, plus a template in `plugins/tables/` with `collection:` naming the Natural Earth admin-1 collection and `period_type: monthly`.
@@ -63,10 +65,10 @@ instances/<disease>/<iso3>/   # e.g. opendengue/lao — grouped by disease data 
 - **Rainfall units are unclear.** The schema says "mm", but the values look like a mean daily rate. Examples: LAO Jan 1998 is about 0.03, and Narathiwat Dec 2022 is 14.4, which would be about 450 mm per month. If so, the published values match the built-in mm/d dataset, not a monthly sum. Confirm when comparing.
 
 ## Local setup notes
-- Windows machine with no `make`. Run `uv sync`, then set `$env:GEOSERVICE_CONFIG = "instances/<disease>/<iso3>/geoservice.yaml"` and run `uv run uvicorn open_geo_service.main:app --host 127.0.0.1 --port <port>`.
+- Windows machine with no `make`. Run `uv sync`, then set `$env:GEOSERVICE_CONFIG = "instances/<iso3>/geoservice.yaml"` and run `uv run uvicorn open_geo_service.main:app --host 127.0.0.1 --port <port>`.
 - `.env` holds credentials only. Copy the values from an existing open-geo-service worktree's `.env` and never print them.
   - Core reads `EDH_API_KEY` (Earth Data Hub: the monthly ERA5-Land built-ins) and `CDS_API_KEY` (CDS: `era5land_relative_humidity_daily`).
-- **Ingesting:** each instance lists its datasets in `instances/<disease>/<iso3>/datasets.yaml`, with a window plus raster and vector ids. Run `uv run python scripts/ingest.py opendengue/lao` (or `--all`, `--only <id>`). It starts one subprocess per instance with `GEOSERVICE_CONFIG` set, calls `execute_ingestion` for rasters and `refresh_feature_collection_from_provider` for vectors, and doesn't need a server.
+- **Ingesting:** each instance lists its datasets in `instances/<iso3>/datasets.yaml`, with a window plus raster and vector ids. Run `uv run python scripts/ingest.py lao` (or `--all`, `--only <id>`). It starts one subprocess per instance with `GEOSERVICE_CONFIG` set, calls `execute_ingestion` for rasters and `refresh_feature_collection_from_provider` for vectors, and doesn't need a server.
 - **One writer per instance.** Core holds a writer lease on each `data_dir`, so a writable server can't run while `ingest.py` does. To browse during ingestion, serve a copy of the config with `read_only: true`. It picks up newly published data without a restart.
 - **A failed ingestion resumes.** Re-running continues from the last committed period, and a dataset is listed only after a run completes.
   - `era5land_relative_humidity_daily` (CDS/ARCO) runs at about 117 days per minute for LAO and holds about 256 MiB per variable in cache.

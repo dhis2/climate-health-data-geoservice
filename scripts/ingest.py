@@ -1,8 +1,8 @@
 """Ingest the datasets each instance declares in its datasets.yaml.
 
-    uv run python scripts/ingest.py opendengue/lao            # one instance
+    uv run python scripts/ingest.py lao                       # one instance
     uv run python scripts/ingest.py --all                     # every instance with a datasets.yaml
-    uv run python scripts/ingest.py opendengue/lao --only natural_earth_admin1
+    uv run python scripts/ingest.py lao --only natural_earth_admin1
 
 Open Geo Service reads GEOSERVICE_CONFIG once per process, so each instance is ingested in its own
 subprocess with GEOSERVICE_CONFIG pointing at that instance's geoservice.yaml. No server is needed;
@@ -30,7 +30,7 @@ INSTANCES = ROOT / "instances"
 
 def _instance_dirs(names: list[str], all_: bool) -> list[Path]:
     if all_:
-        return sorted(p.parent for p in INSTANCES.glob("*/*/datasets.yaml"))
+        return sorted(p.parent for p in INSTANCES.glob("*/datasets.yaml"))
     dirs = []
     for name in names:
         path = (INSTANCES / name).resolve()
@@ -106,7 +106,7 @@ def run_worker(instance: Path, only: set[str]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("instances", nargs="*", help="instance paths under instances/, e.g. opendengue/lao")
+    parser.add_argument("instances", nargs="*", help="instance paths under instances/, e.g. lao")
     parser.add_argument("--all", action="store_true", help="every instance with a datasets.yaml")
     parser.add_argument("--only", action="append", default=[], help="limit to these dataset ids (repeatable)")
     parser.add_argument("--worker", help=argparse.SUPPRESS)

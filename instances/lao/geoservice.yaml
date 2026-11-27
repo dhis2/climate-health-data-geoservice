@@ -1,5 +1,5 @@
-id: opendengue-lao
-name: Lao PDR — OpenDengue
+id: lao
+name: Lao PDR
 
 extent:
   name: Lao PDR
@@ -10,7 +10,7 @@ extent:
 
 # Both resolve relative to this file.
 data_dir: ./data
-plugins_dir: ../../../plugins
+plugins_dir: ../../plugins
 
 # Writable: ingestion is the point. Bind to 127.0.0.1 only. Suggested port: 8011.
 read_only: false
