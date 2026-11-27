@@ -21,7 +21,7 @@ instances/<iso3>/         # e.g. lao — one per country: climate, boundaries an
 ## Decisions (2026-11-25)
 - **One instance per country, shared by every disease (2026-11-27).** Separate instances per disease would duplicate all the climate data. Each disease is a table in the country's instance, joined to its boundaries by feature id. Tables may cover different years, so a window per table goes in `datasets.yaml` and the climate window spans them all.
 - **This repo is separate from `climate-health-data`.** Outputs (Chap CSV, GeoJSON, schema) are exported externally, not stored here. Export comes later. The first goal is just the three instances holding the data.
-- **OpenDengue becomes a table dataset, once core PR #567 (table templates and plugins) merges.** A vector collection can't hold a time series per unit, but core's tables can: rows keyed by `collection_id`, `feature_id` and `period_start`, with `feature_id` checked against a registered feature collection.
+- **OpenDengue becomes a table dataset** (core PR #567, table templates and plugins, merged 2026-11-26). A vector collection can't hold a time series per unit, but core's tables can: rows keyed by `collection_id`, `feature_id` and `period_start`, with `feature_id` checked against a registered feature collection.
   - The plan is a custom schema in `plugins/tables/schemas/opendengue.yaml` whose key includes `adm_1_name`, plus a template in `plugins/tables/` with `collection:` naming the Natural Earth admin-1 collection and `period_type: monthly`.
   - A `FieldsTablePlugin` subclass reads the spatial extract.
   - One period type per table, so weekly rows would need a second template.
@@ -56,19 +56,21 @@ instances/<iso3>/         # e.g. lao — one per country: climate, boundaries an
 | Column | Published source | Open Geo Service dataset |
 |---|---|---|
 | `mean_temperature` | ERA5-Land 2m temperature, °C | built-in `era5land_temperature_monthly` (degC, monthly mean, Earth Data Hub) |
-| `rainfall` | ERA5-Land total precipitation, "mm" | built-in `era5land_precipitation_monthly` (mm/d, monthly mean daily rate) |
+| `rainfall` | ERA5-Land total precipitation, "mm" | built-in `era5land_precipitation_monthly` (mm, monthly total since core #563; it was mm/d before) |
 | `mean_relative_humidity` | Magnus (a=6.112, b=17.67, c=243.5) on monthly-mean T and Td | built-in `era5land_relative_humidity_daily`. Use it rather than writing our own. Daily to monthly harmonisation happens in a later step, together with the other datasets. |
 | `population` | WorldPop 2020, applied to every period | built-in `worldpop_population_global2_100m` (2015–2030), year 2020. This may be a different WorldPop release than the one published. |
-| `disease_cases` | OpenDengue | table dataset, waiting on core #567 (see decisions) |
+| `disease_cases` | OpenDengue | table dataset (see decisions) |
 | boundaries | attributed to OCHA COD-AB, but the fields `shapeISO`/`shapeName` are geoBoundaries' | Natural Earth 10m admin-1 (see decisions). An Overture admin-1 template came first and was dropped. |
 
-- **Rainfall units are unclear.** The schema says "mm", but the values look like a mean daily rate. Examples: LAO Jan 1998 is about 0.03, and Narathiwat Dec 2022 is 14.4, which would be about 450 mm per month. If so, the published values match the built-in mm/d dataset, not a monthly sum. Confirm when comparing.
+- **What Open Geo Service produces takes precedence over the published CSVs (2026-11-27).** They are a reference, not the oracle. For example, the published rainfall looks like a mean daily rate (LAO Jan 1998 ≈ 0.03), while ours is now a monthly total in mm.
+- **Core bug: the monthly precipitation sum stores no-data cells as 0.** At `12f79db`, `ERA5LandEDHMonthlyFromDailyPlugin` sums with `skipna` and no `min_count`, so sea cells ERA5-Land leaves NaN become 0 mm (667 of 7031 cells in LAO's bbox; land values are exact). Coastal admin-1 units would average in those zeros. Report it upstream and re-ingest once fixed.
 
 ## Local setup notes
 - Windows machine with no `make`. Run `uv sync`, then set `$env:GEOSERVICE_CONFIG = "instances/<iso3>/geoservice.yaml"` and run `uv run uvicorn open_geo_service.main:app --host 127.0.0.1 --port <port>`.
 - `.env` holds credentials only. Copy the values from an existing open-geo-service worktree's `.env` and never print them.
   - Core reads `EDH_API_KEY` (Earth Data Hub: the monthly ERA5-Land built-ins) and `CDS_API_KEY` (CDS: `era5land_relative_humidity_daily`).
 - **Ingesting:** each instance lists its datasets in `instances/<iso3>/datasets.yaml`, with a window plus raster and vector ids. Run `uv run python scripts/ingest.py lao` (or `--all`, `--only <id>`). It starts one subprocess per instance with `GEOSERVICE_CONFIG` set, calls `execute_ingestion` for rasters and `refresh_feature_collection_from_provider` for vectors, and doesn't need a server.
+- **Upgrading core:** `uv lock --upgrade-package open-geo-service --upgrade-package open-geo-service-plugins`, then `uv sync`. If the data folder layout changed, a writable server refuses to start: back up `data/`, stop every server, and run `uv run python -m open_geo_service.migrate_layout` (with `--dry-run` first) with `GEOSERVICE_CONFIG` set. A dataset whose definition changed has no delete API: remove its `catalog/` folder and its entry in `artifacts/records.json`, then ingest again.
 - **One writer per instance.** Core holds a writer lease on each `data_dir`, so a writable server can't run while `ingest.py` does. To browse during ingestion, serve a copy of the config with `read_only: true`. It picks up newly published data without a restart.
 - **A failed ingestion resumes.** Re-running continues from the last committed period, and a dataset is listed only after a run completes.
   - `era5land_relative_humidity_daily` (CDS/ARCO) runs at about 117 days per minute for LAO and holds about 256 MiB per variable in cache.
