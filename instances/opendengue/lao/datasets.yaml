@@ -16,4 +16,5 @@ rasters:
     end: "2020"
 
 vectors:
-  - overture_admin1                   # admin-1 boundaries
+  - natural_earth_admin1              # admin-1 boundaries, the units OpenDengue matched to
+  - overture_admin1                   # superseded by natural_earth_admin1

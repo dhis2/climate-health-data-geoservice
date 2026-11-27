@@ -1,0 +1,27 @@
+# First-level administrative units from Natural Earth, for whichever instance loads it: the
+# provider (plugins/vectors/natural_earth.py) defaults the country to the instance's
+# extent.country_code, so one template serves every country.
+#
+# These are the units OpenDengue matched its admin-1 data to: its `RNE_iso_code` is this layer's
+# `iso_3166_2`, so the id here is that code and disease rows join to these features exactly.
+#
+# The release is pinned so the extract never changes under the template; bump it deliberately.
+# `duplicate_ids: dissolve` merges units Natural Earth gives the same code (Lao PDR's Vientiane
+# Prefecture and Province are both LA-VI), which is also how OpenDengue's code-based match reads.
+- id: natural_earth_admin1
+  name: Admin level 1 (Natural Earth)
+  description: >-
+    First-level administrative units (provinces, regions) for this instance's country, from
+    Natural Earth 10m admin-1, identified by ISO 3166-2 code.
+  license:
+    name: Public domain (Natural Earth terms of use)
+    url: https://www.naturalearthdata.com/about/terms-of-use/
+  attribution: Made with Natural Earth
+  source_url: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-1-states-provinces/
+  id_property: iso_3166_2
+  provider: natural_earth
+  params:
+    release: v5.1.2
+    layer: admin_1_states_provinces
+    scale: "10m"
+    duplicate_ids: dissolve
