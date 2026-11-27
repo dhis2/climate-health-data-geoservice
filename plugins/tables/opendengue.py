@@ -60,8 +60,11 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
         id_field: OpenDengue column holding the collection's feature ids, `RNE_iso_code` by default.
         country: ISO 3166-1 alpha-3 code (`ISO_A0`). Defaults to the instance's `extent.country_code`.
         unmatched: `drop` (default) or `error`, for codes the collection lacks.
-        overrides: Entries `{code, name, to, reason}`: records with that code and unit name move to
-            the code `to`, or are dropped when `to` is null.
+        overrides: Entries `{country, code, name, to, reason}`: in that country (`ISO_A0`), records
+            with that code and unit name move to the code `to`, or are dropped when `to` is null.
+            One template serves every country, so an entry applies only in its own.
+        name_property: The collection's property that names a unit, written to `feature_name`;
+            `name` by default.
     """
 
     def __init__(
@@ -75,6 +78,7 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
         country: str | None = None,
         unmatched: str = "drop",
         overrides: Sequence[Mapping[str, Any]] = (),
+        name_property: str = "name",
         **context: Any,
     ) -> None:
         super().__init__(**context)
@@ -87,8 +91,10 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
         if unmatched not in ("drop", "error"):
             raise ValueError(f"unmatched must be 'drop' or 'error', got {unmatched!r}")
         for entry in overrides:
-            if not {"code", "name", "reason"} <= set(entry) or "to" not in entry:
-                raise ValueError(f"an override needs code, name, to (a code, or null to drop) and reason: {dict(entry)}")
+            if not {"country", "code", "name", "reason"} <= set(entry) or "to" not in entry:
+                raise ValueError(
+                    f"an override needs country, code, name, to (a code, or null to drop) and reason: {dict(entry)}"
+                )
         self.release = str(release)
         self.collection = collection
         self.extract = extract
@@ -97,6 +103,7 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
         self.country = country
         self.unmatched = unmatched
         self.overrides = [dict(entry) for entry in overrides]
+        self.name_property = name_property
 
     def records(self, start: date | None, end: date | None) -> Iterator[tuple[str, Mapping[str, Any]]]:
         country = (self.country or _instance_country() or "").strip().upper()
@@ -105,9 +112,10 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
                 f"OpenDengue needs an ISO 3166-1 alpha-3 country code, got {country or 'none'!r}; "
                 "set extent.country_code in the instance config or `country` in the template"
             )
+        features = _collection_names(self.collection, self.name_property)
         frame = self._read(country)
-        frame = self._apply_overrides(frame)
-        frame = self._drop_unmatched(frame)
+        frame = self._apply_overrides(frame, country)
+        frame = self._drop_unmatched(frame, set(features))
 
         summed = (
             frame.groupby([self.id_field, "calendar_start_date"], sort=True)
@@ -135,6 +143,7 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
                 f"OpenDengue {code} {period}",
                 {
                     "feature_id": code,
+                    "feature_name": features.get(code) or "",
                     "period_start": period,
                     "dengue_total": "" if pd.isna(row.dengue_total) else repr(float(row.dengue_total)),
                     "source_names": row.source_names,
@@ -193,9 +202,11 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
         frame[self.id_field] = frame[self.id_field].str.strip()
         return frame
 
-    def _apply_overrides(self, frame: pd.DataFrame) -> pd.DataFrame:
+    def _apply_overrides(self, frame: pd.DataFrame, country: str) -> pd.DataFrame:
         name_field = _NAME_FIELD[self.level]
         for entry in self.overrides:
+            if str(entry["country"]).upper() != country:
+                continue
             hit = (frame[self.id_field] == entry["code"]) & (frame[name_field] == entry["name"])
             count = int(hit.sum())
             if not count:
@@ -211,8 +222,7 @@ class OpenDengueTablePlugin(FieldsTablePlugin):
                 frame.loc[hit, self.id_field] = str(entry["to"])
         return frame
 
-    def _drop_unmatched(self, frame: pd.DataFrame) -> pd.DataFrame:
-        known = _collection_ids(self.collection)
+    def _drop_unmatched(self, frame: pd.DataFrame, known: set[str]) -> pd.DataFrame:
         missing = ~frame[self.id_field].isin(known)
         if not missing.any():
             return frame
@@ -256,8 +266,8 @@ def _joined(values: pd.Series) -> str:
     return " + ".join(sorted({str(v) for v in values if str(v).strip()}))
 
 
-def _collection_ids(collection_id: str) -> set[str]:
-    """The feature ids of a registered collection, as the table store checks them."""
+def _collection_names(collection_id: str, name_property: str) -> dict[str, str | None]:
+    """The feature ids of a registered collection, as the table store checks them, with each one's name."""
     from open_geo_service.features import store as feature_store
     from open_geo_service.features.services import registered_collections
 
@@ -265,9 +275,12 @@ def _collection_ids(collection_id: str) -> set[str]:
     if record is None or record.features is None:
         raise ValueError(f"feature collection '{collection_id}' is not registered; ingest it before this table")
     id_property = record.features.id_property
+    rows = feature_store.read_feature_columns(record, list(dict.fromkeys([id_property, name_property])))
+    if rows and name_property not in rows[0]:
+        raise ValueError(f"feature collection '{collection_id}' has no property '{name_property}'")
     return {
-        str(row[id_property])
-        for row in feature_store.read_feature_columns(record, [id_property])
+        str(row[id_property]): (str(row[name_property]) if row.get(name_property) is not None else None)
+        for row in rows
         if row.get(id_property) is not None
     }
 

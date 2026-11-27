@@ -17,6 +17,9 @@
       required: true
       nullable: false
       description: Code of the unit, the collection's identifier property (Natural Earth's iso_3166_2 at admin 1).
+    - name: feature_name
+      type: string
+      description: Name of the unit in the feature collection when the row was written.
     - name: period_start
       type: date
       required: true

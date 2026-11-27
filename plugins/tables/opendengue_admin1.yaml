@@ -32,7 +32,8 @@
       id_field: RNE_iso_code
       unmatched: drop
       overrides:
-        - code: VN-30
+        - country: VNM
+          code: VN-30
           name: HA TAY
           to: VN-HN
           reason: >-
