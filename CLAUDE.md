@@ -22,7 +22,10 @@ instances/<iso3>/         # e.g. lao — one per country: climate, boundaries an
 - **One instance per country, shared by every disease (2026-11-27).** Separate instances per disease would duplicate all the climate data. Each disease is a table in the country's instance, joined to its boundaries by feature id. Tables may cover different years, so a window per table goes in `datasets.yaml` and the climate window spans them all.
 - **This repo is separate from `climate-health-data`.** Outputs (Chap CSV, GeoJSON, schema) are exported externally, not stored here. Export comes later. The first goal is just the three instances holding the data.
 - **OpenDengue becomes a table dataset** (core PR #567, table templates and plugins, merged 2026-11-26). A vector collection can't hold a time series per unit, but core's tables can: rows keyed by `collection_id`, `feature_id` and `period_start`, with `feature_id` checked against a registered feature collection.
-  - The plan is a custom schema in `plugins/tables/schemas/opendengue.yaml` whose key includes `adm_1_name`, plus a template in `plugins/tables/` with `collection:` naming the Natural Earth admin-1 collection and `period_type: monthly`.
+  - **Built (2026-11-28):** schema `plugins/tables/schemas/opendengue.yaml`, keyed (`collection_id`, `feature_id`, `period_start`); plugin `plugins/tables/opendengue.py` (`OpenDengueTablePlugin`, a `FieldsTablePlugin`); template `plugins/tables/opendengue_admin1.yaml` (`collection: natural_earth_admin1`, `period_type: monthly`, release pinned).
+  - **One row per code and month.** Several OpenDengue names under one code are summed, their names kept in `source_names`. `adm_1_name` left the key so a join gives one value per unit.
+  - **History against a snapshot:** `overrides` move a (code, name) to another code or drop it, with a reason; a code the collection lacks is dropped and logged (`unmatched: drop`), since the store refuses a whole write over one unknown feature. The plugin takes only the `T_res` matching the template's period type; a weekly table would be a second template.
+  - **LAO verified:** 2479 rows, equal unit-month by unit-month to the raw CSV summed per code (99,934 cases); all 16 codes; 17 unit-months have no report (LA-PH 13, LA-XE 4).
   - A `FieldsTablePlugin` subclass reads the spatial extract.
   - One period type per table, so weekly rows would need a second template.
   - This will move to open-geo-service-plugins later.
@@ -36,8 +39,11 @@ instances/<iso3>/         # e.g. lao — one per country: climate, boundaries an
 - OpenDengue findings to reuse:
   - **Source:** the OpenDengue release `Spatial_extract_V1_3_1.zip` (55 MB zip, 500 MB CSV) at `github.com/OpenDengue/master-repo/data/releases/`. Filter with `S_res == "Admin1"`.
   - **Matching:** don't match on names. `RNE_iso_code` equals Natural Earth 10m admin-1 `iso_3166_2` exactly, in both directions, for LAO (16 units), THA (77) and VNM (63).
-  - **Keys:** (`RNE_iso_code`, `adm_1_name`, `calendar_start_date`, `calendar_end_date`) is unique. Several names share one code: LA-VI covers VIENTIANE CAPITAL and XAISOMBOUN; TH-25 covers PRACHIN BURI and PHACHINBURI; VN-30 covers GIA LAI and HA TAY. HA TAY on VN-30 looks like an upstream error, since Ha Tay merged into Hanoi.
-  - **Mixed resolutions:** T_res mixes Month, Week and Year.
+  - **Keys:** (`RNE_iso_code`, `adm_1_name`, `calendar_start_date`, `calendar_end_date`) is unique. Several names share one code:
+    - TH-25: PRACHIN BURI (1993–2002) then PHACHINBURI (2003–2022), a rename; summing is right.
+    - LA-VI: VIENTIANE CAPITAL and VIENTIANE CAPITAL [PREFECTURE] over the same 156 months with different values, plus XAISOMBOUN (1998–2005). All lie in Natural Earth's dissolved LA-VI, so summing is right.
+    - VN-30: GIA LAI and HA TAY over the same months. Ha Tay merged into Ha Noi in 2008, so the template overrides HA TAY to VN-HN.
+  - **Resolutions:** at Admin1, LAO, THA and VNM are Month only (LAO 1998–2010, THA 1993–2022, VNM 1994-02 to 2010). Week and Year occur only at Admin0.
   - **Reference code:** `dhis2-chap/chap-core` has `chap_core/data/open_dengue.py`.
 - **The goal is reproducibility.** Today `climate-health-data` can't be replicated. Each output should record what produced it: the Open Geo Service and plugins commits from `uv.lock`, plus the instance config.
 - Ingest the whole window in one request, not in increments (CLIM-899), and never use `overwrite` (CLIM-898).

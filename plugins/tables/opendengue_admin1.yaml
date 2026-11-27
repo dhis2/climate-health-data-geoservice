@@ -1,0 +1,41 @@
+# Monthly dengue cases per admin-1 unit from OpenDengue, for whichever instance loads it: the
+# plugin (plugins/tables/opendengue.py) defaults the country to the instance's
+# extent.country_code.
+#
+# Rows join to natural_earth_admin1 by code: OpenDengue's RNE_iso_code is Natural Earth's
+# iso_3166_2, so no names are matched. The release is pinned; bump it deliberately.
+- id: opendengue_admin1
+  name: Dengue cases by admin-1 unit (OpenDengue)
+  description: >-
+    Reported dengue cases per month and first-level administrative unit, from OpenDengue's
+    highest spatial resolution extract, joined to the Natural Earth admin-1 units by ISO 3166-2
+    code. Cite as Clarke J, Lim A, Gupte P, Pigott DM, van Panhuis WG, Brady OJ. A global dataset
+    of publicly available dengue case count data. Sci Data 11, 296 (2024),
+    https://doi.org/10.1038/s41597-024-03120-7.
+  source: OpenDengue
+  source_url: https://opendengue.org/data.html
+  license: CC-BY-4.0
+  providers:
+    - name: OpenDengue project (London School of Hygiene & Tropical Medicine)
+      url: https://opendengue.org
+      roles: [producer, licensor]
+  period_type: monthly
+  schema: opendengue
+  collection: natural_earth_admin1
+  ingestion:
+    plugin: tables.opendengue.OpenDengueTablePlugin
+    params:
+      release: "1.3.1"
+      collection: natural_earth_admin1
+      extract: spatial
+      level: Admin1
+      id_field: RNE_iso_code
+      unmatched: drop
+      overrides:
+        - code: VN-30
+          name: HA TAY
+          to: VN-HN
+          reason: >-
+            Ha Tay merged into Ha Noi in 2008, and Natural Earth's VN-HN is the merged Ha Noi;
+            OpenDengue codes it VN-30 (Gia Lai), on the other side of the country, over the same
+            months as Gia Lai's own records.

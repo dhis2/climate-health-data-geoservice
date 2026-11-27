@@ -8,7 +8,10 @@ Open Geo Service reads GEOSERVICE_CONFIG once per process, so each instance is i
 subprocess with GEOSERVICE_CONFIG pointing at that instance's geoservice.yaml. No server is needed;
 start one afterwards to browse the result.
 
-Re-running is safe: a raster whose requested window is already stored does not query the source.
+Order: vectors, then tables (their rows are checked against a vector collection), then rasters.
+
+Re-running is safe: a raster whose requested window is already stored does not query the source,
+and a table's fetched periods replace their stored rows.
 """
 
 from __future__ import annotations
@@ -40,12 +43,18 @@ def _instance_dirs(names: list[str], all_: bool) -> list[Path]:
     return dirs
 
 
-def _rasters(spec: dict[str, Any]) -> list[dict[str, str]]:
+def _entries(spec: dict[str, Any], kind: str, *, default_window: bool) -> list[dict[str, str]]:
+    """The `kind` entries of a datasets.yaml, each with its id and window.
+
+    Rasters take the file's `start`/`end` unless an entry overrides them. Tables take only their
+    own: without one, the whole period the source has.
+    """
     out = []
-    for entry in spec.get("rasters") or []:
+    for entry in spec.get(kind) or []:
         item = {"id": entry} if isinstance(entry, str) else dict(entry)
-        item.setdefault("start", spec.get("start"))
-        item.setdefault("end", spec.get("end"))
+        if default_window:
+            item.setdefault("start", spec.get("start"))
+            item.setdefault("end", spec.get("end"))
         out.append({k: str(v) for k, v in item.items() if v is not None})
     return out
 
@@ -74,28 +83,33 @@ def run_worker(instance: Path, only: set[str]) -> int:
             logging.exception("vector %s failed", vector_id)
             failures.append(f"{vector_id}: {exc}")
 
-    for raster in _rasters(spec):
-        dataset_id = raster["id"]
+    # Tables after vectors, since a table's rows are checked against its feature collection.
+    work = [("table", t) for t in _entries(spec, "tables", default_window=False)]
+    work += [("raster", r) for r in _entries(spec, "rasters", default_window=True)]
+    for kind, item in work:
+        dataset_id = item["id"]
         if only and dataset_id not in only:
             continue
-        print(f"[{label}] raster {dataset_id}: {raster.get('start')} .. {raster.get('end')}", flush=True)
+        print(f"[{label}] {kind} {dataset_id}: {item.get('start', 'first')} .. {item.get('end', 'last')}", flush=True)
         began = time.monotonic()
 
-        def progress(done: int | None, total: int | None, message: str | None, _id: str = dataset_id) -> None:
-            print(f"[{label}] raster {_id}: {done}/{total} {message or ''}".rstrip(), flush=True)
+        def progress(
+            done: int | None, total: int | None, message: str | None, _id: str = dataset_id, _kind: str = kind
+        ) -> None:
+            print(f"[{label}] {_kind} {_id}: {done}/{total} {message or ''}".rstrip(), flush=True)
 
         try:
             result = execute_ingestion(
                 dataset_id=dataset_id,
-                start=raster.get("start"),
-                end=raster.get("end"),
+                start=item.get("start"),
+                end=item.get("end"),
                 publish=True,
                 on_progress=progress,
             )
-            print(f"[{label}] raster {dataset_id}: done in {time.monotonic() - began:.0f}s ({result})", flush=True)
+            print(f"[{label}] {kind} {dataset_id}: done in {time.monotonic() - began:.0f}s ({result})", flush=True)
         except Exception as exc:  # noqa: BLE001 — report and carry on with the next dataset
-            logging.exception("raster %s failed", dataset_id)
-            failures.append(f"{dataset_id}: {exc}")
+            logging.exception("%s %s failed", kind, dataset_id)
+            failures.append(f"{dataset_id}: {getattr(exc, 'detail', None) or exc}")
 
     if failures:
         print(f"[{label}] FAILED: " + "; ".join(failures), flush=True)
