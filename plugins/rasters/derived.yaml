@@ -1,0 +1,38 @@
+# Datasets derived on the instance from another dataset at a finer period, so every dataset the
+# Chap CSV combines exists at the CSV's period. Each is produced by the aggregate_to_period
+# workflow (plugins/workflows/) and kept current by its recipe: when the input dataset updates,
+# Open Geo Service runs the workflow again over the input's coverage. scripts/ingest.py creates
+# it the first time, from the instance's datasets.yaml `derived:` list.
+
+- id: era5land_relative_humidity_monthly
+  name: 2m relative humidity, monthly (ERA5-Land)
+  short_name: Relative humidity
+  description: >-
+    Monthly mean relative humidity 2 m above the ground at 9 km worldwide: the mean of
+    era5land_relative_humidity_daily over each calendar month (UTC days), whose days are means of
+    hourly relative humidity.
+  standard_name: relative_humidity
+  variable: rh
+  period_type: monthly
+  sync:
+    kind: static
+  units: "%"
+  cell_methods: "time: mean"
+  resolution: 9 km x 9 km
+  source: Derived (aggregate_to_period workflow) from ERA5-Land Reanalysis
+  produced_by:
+    workflow: aggregate_to_period
+    arguments:
+      input_dataset_id: era5land_relative_humidity_daily
+      variable: rh
+      period: month
+      reducer: mean
+    refresh_on: input_dataset_id
+  license:
+    name: Licence to Use Copernicus Products
+    url: https://apps.ecmwf.int/datasets/licences/copernicus/
+  providers:
+    - name: Copernicus Climate Change Service (C3S)
+      url: https://climate.copernicus.eu/
+  display:
+    colormap: Purples

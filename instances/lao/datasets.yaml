@@ -19,7 +19,24 @@ tables:
 rasters:
   - era5land_temperature_monthly      # mean_temperature (degC)
   - era5land_precipitation_monthly    # rainfall (mm, monthly total)
-  - era5land_relative_humidity_daily  # mean_relative_humidity (%), monthly harmonisation later
+  - era5land_relative_humidity_daily  # input of era5land_relative_humidity_monthly
   - id: worldpop_population_global2_100m  # population, 2020 applied to every period
     start: "2020"
     end: "2020"
+
+# Made on the instance from a raster at a finer period (recipes in plugins/rasters/derived.yaml):
+# created by ingest.py the first time, then kept current by the server.
+derived:
+  - era5land_relative_humidity_monthly
+
+# The Chap CSV scripts/chap.py builds over start..end. Every column is at `period`, or a single
+# static period (population's year) copied to every one; a finer dataset gets a derived one above.
+chap:
+  period: month
+  boundaries: natural_earth_admin1
+  columns:
+    rainfall:               {dataset: era5land_precipitation_monthly, spatial: mean}
+    mean_temperature:       {dataset: era5land_temperature_monthly, spatial: mean}
+    mean_relative_humidity: {dataset: era5land_relative_humidity_monthly, spatial: mean}
+    population:             {dataset: worldpop_population_global2_100m, spatial: sum}
+    disease_cases:          {table: opendengue_admin1, value: dengue_total}

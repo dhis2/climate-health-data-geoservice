@@ -1,0 +1,111 @@
+{
+  "id": "aggregate_to_period",
+  "summary": "Aggregate a dataset to a coarser period and publish it as a new dataset",
+  "description": "Loads a published dataset over a time range, reduces its steps within each period (e.g. daily to monthly means) with aggregate_period_start (plugins/processes/), which labels each period by its first day as stored datasets are, and publishes the result as a new GeoZarr dataset. Used by recipes in plugins/rasters/ so a dataset exists at the period other datasets are compared at, kept current as its input updates.",
+  "parameters": [
+    {
+      "name": "input_dataset_id",
+      "description": "ID of the published dataset to aggregate, e.g. era5land_relative_humidity_daily.",
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "output_dataset_id",
+      "description": "ID of the dataset to publish; a recipe passes its template's own id.",
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "variable",
+      "description": "Variable carried through to the published dataset.",
+      "schema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "period",
+      "description": "The period to aggregate to: week (ISO), month, season or year.",
+      "schema": {
+        "type": "string",
+        "enum": [
+          "week",
+          "month",
+          "season",
+          "year"
+        ]
+      }
+    },
+    {
+      "name": "reducer",
+      "description": "How the steps within a period are combined: mean, sum, min or max.",
+      "schema": {
+        "type": "string",
+        "enum": [
+          "mean",
+          "sum",
+          "min",
+          "max"
+        ]
+      }
+    },
+    {
+      "name": "temporal_extent",
+      "description": "Time range of the input to aggregate, as [start, end] ISO-8601 dates. A recipe fills it with the input's coverage.",
+      "schema": {
+        "type": "array",
+        "subtype": "temporal-interval"
+      }
+    }
+  ],
+  "process_graph": {
+    "load": {
+      "process_id": "load_collection",
+      "arguments": {
+        "id": {
+          "from_parameter": "input_dataset_id"
+        },
+        "temporal_extent": {
+          "from_parameter": "temporal_extent"
+        }
+      }
+    },
+    "aggregate": {
+      "process_id": "aggregate_period_start",
+      "arguments": {
+        "data": {
+          "from_node": "load"
+        },
+        "period": {
+          "from_parameter": "period"
+        },
+        "reducer": {
+          "from_parameter": "reducer"
+        }
+      }
+    },
+    "save": {
+      "process_id": "save_result",
+      "arguments": {
+        "data": {
+          "from_node": "aggregate"
+        },
+        "format": "Zarr",
+        "options": {
+          "dataset_id": {
+            "from_parameter": "output_dataset_id"
+          },
+          "source_dataset_id": {
+            "from_parameter": "input_dataset_id"
+          },
+          "variable": {
+            "from_parameter": "variable"
+          },
+          "publish": true
+        }
+      },
+      "result": true
+    }
+  }
+}
