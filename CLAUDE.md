@@ -36,6 +36,12 @@ instances/<iso3>/         # e.g. lao — one per country: climate, boundaries an
   - **Combining:** chain `merge_cubes`, then `save_result` with `CHAPCSV` and `cube_labels`.
   - **Provenance:** save the generated graph next to the output; core's job record adds the input snapshots.
   - **Not covered:** tables can't be loaded into a graph yet, so `disease_cases` is joined outside the graph by (`location`, `time_period`).
+- **Chap graph, prototyped on LAO (2026-11-28).** One graph produces the whole CSV in about 40 s: `load_features` → per column `load_collection` → time step → `aggregate_spatial_weighted`, chained with `merge_cubes`, then `save_result` `CHAPCSV`. Two custom processes in `plugins/processes/` fill gaps in core:
+  - `label_period_start`: openeo-processes-dask's `aggregate_temporal_period` labels a month by its last day, while stores label it by its first, so `merge_cubes` refuses to combine them. Its values are right. (`aggregate_temporal` with explicit intervals is worse: it averages the days after each start through the end, the reverse of the openEO spec.) `rename_labels` turns dates into strings, so it can't fix this.
+  - `load_table(id, value, like)`: a table's value column laid out on a `like` vector cube's features and steps, NaN where there is no row, so `merge_cubes` lines it up with the climate columns.
+  - Population: aggregate the single year with `sum` first, then `resample_cube_temporal` onto a monthly cube, which copies it to every month. Its variable is `pop_total`, so `cube_labels` maps that.
+  - `CHAPCSV` writes DHIS2 periods (`199801`); the published Chap CSVs use `1998-01`, and it writes no `location_name`.
+  - Against the published LAO CSV (a reference, not the oracle): temperature and relative humidity agree (corr 0.998); rainfall correlates 0.9985 at 30.6× the published values, so the published rainfall was mm/d and ours is monthly totals; disease_cases are identical wherever both have a value, and ours also fill LA-VI, which the published CSV leaves empty for all 156 months; population is 1.1–4.7× the published per unit, summing to about 7.2 M for Lao PDR against about 4 M published.
 - OpenDengue findings to reuse:
   - **Source:** the OpenDengue release `Spatial_extract_V1_3_1.zip` (55 MB zip, 500 MB CSV) at `github.com/OpenDengue/master-repo/data/releases/`. Filter with `S_res == "Admin1"`.
   - **Matching:** don't match on names. `RNE_iso_code` equals Natural Earth 10m admin-1 `iso_3166_2` exactly, in both directions, for LAO (16 units), THA (77) and VNM (63).
