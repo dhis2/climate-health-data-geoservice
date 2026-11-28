@@ -1,12 +1,13 @@
-# What scripts/ingest.py puts into this instance, in this order: vectors, tables, rasters.
+# What scripts/ingest.py puts into this instance, in this order: vectors, tables, rasters,
+# derived.
 # Vector ids are feature templates (plugins/vectors/); table ids are table templates
 # (plugins/tables/); raster ids are dataset templates (built-in, open-geo-service-plugins, or
 # plugins/rasters/).
 #
 # `start`/`end` apply to every raster unless one overrides them. A table takes only its own
-# window, and without one everything its source has. The climate window should span every
-# disease table: OpenDengue's LAO admin-1 data is 1998-01 to 2010-12. Each raster is ingested
-# over its whole window in one request (CLIM-899), never with overwrite (CLIM-898).
+# window, and without one everything its source has. The climate window should span every disease
+# table: OpenDengue's LAO admin-1 data is 1998-01 to 2010-12. Each raster is ingested over its
+# whole window in one request (CLIM-899), never with overwrite (CLIM-898).
 start: "1998-01-01"
 end: "2010-12-31"
 

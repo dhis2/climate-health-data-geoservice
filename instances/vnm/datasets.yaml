@@ -1,0 +1,44 @@
+# What scripts/ingest.py puts into this instance, in this order: vectors, tables, rasters,
+# derived.
+# Vector ids are feature templates (plugins/vectors/); table ids are table templates
+# (plugins/tables/); raster ids are dataset templates (built-in, open-geo-service-plugins, or
+# plugins/rasters/).
+#
+# `start`/`end` apply to every raster unless one overrides them. A table takes only its own
+# window, and without one everything its source has. The climate window should span every disease
+# table: OpenDengue's VNM admin-1 data is 1994-02 to 2010-12; the published vnm/ CSV started at
+# 1998-01. Each raster is ingested over its whole window in one request (CLIM-899), never with
+# overwrite (CLIM-898).
+start: "1994-01-01"
+end: "2010-12-31"
+
+vectors:
+  - natural_earth_admin1              # admin-1 boundaries, the units OpenDengue matched to
+
+tables:
+  - opendengue_admin1                 # disease_cases: monthly dengue cases per admin-1 unit
+
+rasters:
+  - era5land_temperature_monthly      # mean_temperature (degC)
+  - era5land_precipitation_monthly    # rainfall (mm, monthly total)
+  - era5land_relative_humidity_daily  # input of era5land_relative_humidity_monthly
+  - id: worldpop_population_global2_100m  # population, 2020 applied to every period
+    start: "2020"
+    end: "2020"
+
+# Made on the instance from a raster at a finer period (recipes in plugins/rasters/derived.yaml):
+# created by ingest.py the first time, then kept current by the server.
+derived:
+  - era5land_relative_humidity_monthly
+
+# The Chap CSV scripts/chap.py builds over start..end. Every column is at `period`, or a single
+# static period (population's year) copied to every one; a finer dataset gets a derived one above.
+chap:
+  period: month
+  boundaries: natural_earth_admin1
+  columns:
+    rainfall:               {dataset: era5land_precipitation_monthly, spatial: mean}
+    mean_temperature:       {dataset: era5land_temperature_monthly, spatial: mean}
+    mean_relative_humidity: {dataset: era5land_relative_humidity_monthly, spatial: mean}
+    population:             {dataset: worldpop_population_global2_100m, spatial: sum}
+    disease_cases:          {table: opendengue_admin1, value: dengue_total}
