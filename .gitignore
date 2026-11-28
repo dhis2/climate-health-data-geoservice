@@ -228,6 +228,8 @@ __marimo__/
 # Each instance's Zarr stores and downloads. The folder is kept, its contents are not.
 instances/*/data/*
 !instances/*/data/.gitkeep
+instances/*/exports/*
+!instances/*/exports/.gitkeep
 
 # Local config overrides for one machine — never commit.
 instances/*/geoservice.local.yaml

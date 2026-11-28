@@ -1,8 +1,9 @@
 """Build each instance's Chap CSV from the `chap:` block of its datasets.yaml.
 
-    uv run python scripts/chap.py lao --out ../chap-exports            # one instance
-    uv run python scripts/chap.py --all --out ../chap-exports          # every instance with a chap: block
-    uv run python scripts/chap.py lao --out ../chap-exports --url http://127.0.0.1:8011
+    uv run python scripts/chap.py lao                                  # one instance, into instances/lao/exports/
+    uv run python scripts/chap.py --all                                # every instance with a chap: block
+    uv run python scripts/chap.py lao --url http://127.0.0.1:8011      # use a running server
+    uv run python scripts/chap.py lao --out ../chap-exports            # into ../chap-exports/lao/ instead
 
 The CSV comes from one openEO process graph, generated from the `chap:` block and run as a batch
 job on the instance's own server: the boundaries are loaded once, each column's dataset is loaded
@@ -14,7 +15,8 @@ year), which is copied to every period. A finer dataset is refused: declare a de
 (plugins/rasters/derived.yaml) and list it under `derived:`, so the server keeps it current.
 
 Without --url, a server is started for the instance on a free port and stopped afterwards, so no
-other writable server may run on it. Outputs go to <out>/<instance>/: the CSV, the graph that made
+other writable server may run on it. Outputs go to the instance's exports/ folder (gitignored), or
+<out>/<instance>/ with --out: the CSV, the graph that made
 it, the boundaries as GeoJSON, and provenance.json (repo and Open Geo Service commits, the instance
 config, and each input as the server reported it).
 """
@@ -138,7 +140,7 @@ def _label(labels: dict[str, str], variable: str, column: str) -> None:
     labels[variable] = column
 
 
-def run_instance(instance: Path, out_root: Path, url: str | None) -> Path:
+def run_instance(instance: Path, out_root: Path | None, url: str | None) -> Path:
     spec = yaml.safe_load((instance / "datasets.yaml").read_text(encoding="utf-8")) or {}
     chap = spec.get("chap")
     if not chap:
@@ -167,7 +169,7 @@ def run_instance(instance: Path, out_root: Path, url: str | None) -> Path:
         csv = client.get(f"/jobs/{job_id}/results/result.csv")
         csv.raise_for_status()
 
-        out = out_root / instance.name
+        out = out_root / instance.name if out_root is not None else instance / "exports"
         out.mkdir(parents=True, exist_ok=True)
         name = chap.get("name", "chap_{iso3}_admin1_{adjective}").format(iso3=iso3, adjective=ADJECTIVE[chap["period"]])
         (out / f"{name}.csv").write_bytes(csv.content)
@@ -290,7 +292,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("instances", nargs="*", help="instance folders under instances/, e.g. lao")
     parser.add_argument("--all", action="store_true", help="every instance whose datasets.yaml has a chap: block")
-    parser.add_argument("--out", required=True, type=Path, help="folder to write <instance>/ outputs into")
+    parser.add_argument("--out", type=Path, help="write to <out>/<instance>/ instead of the instance's exports/ folder")
     parser.add_argument("--url", help="use this running server instead of starting one (one instance only)")
     args = parser.parse_args()
 
@@ -310,7 +312,7 @@ def main() -> int:
     status = 0
     for instance in dirs:
         try:
-            run_instance(instance, args.out.resolve(), args.url)
+            run_instance(instance, args.out.resolve() if args.out else None, args.url)
         except Exception as exc:  # noqa: BLE001 — report and carry on with the next instance
             print(f"[{instance.name}] FAILED: {exc}", flush=True)
             status = 1
